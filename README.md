@@ -1,134 +1,119 @@
 # flint
 
-Flash keyboard firmware on Linux.
+QMK Toolbox does not run on Linux, and it is not going to. It is a Windows and macOS app, and the QMK docs answer the question by sending Linux users to the command line.
 
-QMK Toolbox is Windows and macOS only. The flashing tools it wraps, `dfu-util`
-and friends, have always been on Linux. What was missing is everything around
-them: noticing a board drop into bootloader mode, knowing what it is, and not
-writing the wrong firmware to it.
+That answer is not wrong. `dfu-util`, `dfu-programmer` and `wb32-dfu-updater_cli` have been packaged on Linux for years, and they do the actual flashing. What Toolbox adds on top of them is the part people miss: it sits there watching USB, notices the moment your board drops into bootloader mode, works out what it is, and runs the right tool with the right arguments before you have finished letting go of the key.
 
-flint is that part. It does not implement DFU, because reimplementing a flash
-protocol is how you brick a keyboard.
+flint is that part.
 
 ## Install
 
-```bash
+```sh
 go install github.com/JustSteveKing/flint@latest
 ```
 
-You also need the flasher for your board's bootloader:
+You also need whichever flasher your board's bootloader wants:
 
-| Bootloader | Tool | Where |
+| Bootloader | Tool | Arch package |
 |---|---|---|
 | STM32 DfuSe | `dfu-util` | `pacman -S dfu-util` |
 | WB32 | `wb32-dfu-updater_cli` | `yay -S wb32-dfu-updater_cli-git` |
 | Atmel DFU | `dfu-programmer` | `pacman -S dfu-programmer` |
 
-flint names the missing package if one is not installed.
+If one is missing, flint names the package rather than leaving you with "command not found".
 
-## Use
+## Use it
 
-```bash
+```sh
 flint
 ```
 
-That is the whole interface. flint walks you through it:
+That is the whole interface. It asks which keyboard, which firmware file, and then tells you how to put that specific board into bootloader mode:
 
-1. **Which keyboard**, from the boards it knows, with the connected ones marked.
-2. **Which firmware**, from a file browser that only offers real firmware.
-3. **How to get into bootloader mode**, as numbered steps for that specific
-   board, with a checklist that ticks off as flint watches it happen. Seeing
-   "unplugged" tick is how you know step 3 worked, and it arrives seconds
-   before the bootloader does.
-4. **Confirm**, showing exactly what was detected and the exact command, with
-   anything uncertain called out.
+```
+flint  step 3 of 4
+Keychron Q1 HE  ·  ~/Downloads/q1he_v1.2.bin
 
-Then live output while it writes, and a result screen that tells you what it
-learned about your board.
+Put Keychron Q1 HE into bootloader mode
 
-The menu also has an **Identify a board** mode, which runs the same
-walkthrough and reports what appears without writing anything. That is how you
-find out what a new keyboard's bootloader is.
+  1. Switch the keyboard to wired mode.
+  2. Hold down Esc.
+  3. Unplug the USB cable. Keep holding Esc.
+  4. Plug the cable back in, still holding Esc.
+  5. Let go. The board will look dead, with no lighting. That is correct.
 
-### Skipping ahead
+  ✓ Keychron Q1 HE seen
+  ✓ unplugged
+  ⣾ waiting for a bootloader to appear
+```
 
-Anything you already know is a step flint will not ask about:
+The checklist is driven by real USB events. Watching "unplugged" tick is how you know step 3 worked, and it happens a couple of seconds before the bootloader shows up, which is the gap where you would otherwise be wondering whether you had held the key long enough.
 
-```bash
+Then it shows you exactly what it is about to run and waits for a `y`.
+
+If you already know what you are doing, the flags skip whatever you have answered:
+
+```sh
 flint flash ~/Downloads/firmware.bin                    # starts at "which keyboard"
 flint flash --board "Q1 HE" ~/Downloads/firmware.bin    # starts at the instructions
 flint flash --dry-run ~/Downloads/firmware.bin          # rehearse, write nothing
 ```
 
-### Other commands
+There are three read-only commands too. `flint devices` lists what is plugged in that flint recognises, `flint boards` prints the table, and `flint watch` reports USB arrivals without touching anything.
 
-These are the non-interactive forms, for when you already know what you are
-doing:
+## What it will not do
 
-```bash
-flint devices          # what is connected that flint recognises
-flint devices --all    # every USB device
-flint boards           # the table of known boards and bootloaders
-flint watch            # print devices coming and going, flash nothing
-```
+flint does not implement DFU. Reimplementing a flash protocol is how you brick a keyboard, and the existing tools are correct. Everything below the confirmation prompt is `exec`.
+
+It also refuses to write when it is unsure:
+
+- Nothing is flashed without an explicit `y`, and the exact command is on screen before you give it.
+- A bootloader whose arguments came from vendor documentation rather than from a successful run is marked unverified, and warns harder.
+- When more than one known board could be sitting behind a bootloader, it says so and names them. `--board "Q1 HE"` turns that guess into a check.
+
+## The honest bit
+
+I have not flashed anything with it yet.
+
+The state machine has 35 tests and they cover every transition, but a test cannot tell you whether `wb32-dfu-updater_cli -D file -R` is the right incantation, and those arguments are transcribed from the vendor's own usage rather than proven against hardware. Only the STM32 path is marked verified.
+
+The bootloader IDs are the other gap. A keyboard in bootloader mode stops identifying itself as a keyboard: it comes back as a generic DFU device from the MCU vendor, so the only way to know what you are about to overwrite is to have written it down first. Every board in the table currently lists both candidates, which is why the ambiguity warning fires on all of them.
+
+Narrowing it takes about thirty seconds per board. Run `flint`, pick **Identify a board**, do the unplug dance, and read the ID it prints.
+
+If the vendor ships a working updater for your board, use that instead. flint is for the ones where the updater is a Windows binary.
 
 ## Adding a board
 
-A keyboard in bootloader mode no longer identifies itself as a keyboard. It
-comes back as a generic DFU device from the MCU vendor, so the only way to know
-what is behind it is to have written it down.
+1. `flint devices` gives you the running ID.
+2. `flint watch`, then bootloader mode. The ID that appears is the bootloader.
+3. Add both to `Known` in `internal/board/board.go`, with `Steps` for getting into bootloader mode.
 
-1. `flint devices` gives the running ID.
-2. `flint watch`, then enter bootloader mode. The ID that appears is the
-   bootloader.
-3. Add both to `Known` in `internal/board/board.go`, along with `Steps` for
-   getting into bootloader mode. Those steps are what the walkthrough renders,
-   so write them as things to do in order.
+Write the steps as things to do in order. The walkthrough renders them as a numbered list and people follow them while holding a key down with their other hand.
 
-`flint` will also tell you what it learned after a successful flash, on the
-result screen.
+Once you have confirmed a flasher's arguments work, set `Verified: true` and narrow that board's `Bootloaders` to the one it actually uses.
 
-Bootloaders listed as unverified have arguments transcribed from vendor docs
-rather than proven against hardware. flint warns before running one. When you
-confirm a set works, set `Verified: true` and narrow that board's `Bootloaders`
-to the one it actually uses.
+## Why it reads sysfs
 
-## Why sysfs
+Every Go USB binding worth using is cgo over libusb or hidapi, and that costs the static binary. `/sys/bus/usb/devices` gives vendor, product, the descriptor strings and hotplug for nothing, with no dependencies at all.
 
-Every Go USB binding worth using is cgo over libusb or hidapi, and that costs
-the static binary. Reading `/sys/bus/usb/devices` gives vendor, product, the
-descriptor strings and hotplug for nothing, with no dependencies.
+Polling rather than a netlink uevent socket is deliberate too. Netlink drops events silently when the reader falls behind, and a quarter-second poll of a directory of symlinks costs nothing worth measuring.
 
-Polling rather than a netlink uevent socket is also deliberate: netlink drops
-events silently if the process cannot keep up, and a quarter-second poll of a
-directory of symlinks costs nothing.
+## Tests
 
-## Testing
-
-```bash
+```sh
 go test ./...
 ```
 
-`FLINT_SYSFS` points the enumerator at a directory instead of the real sysfs,
-which is how the flash path is exercised without hardware:
+`FLINT_SYSFS` points the enumerator at a directory instead of the real thing, which is how the flash path is exercised without hardware:
 
-```bash
+```sh
 mkdir -p /tmp/fake/1-2
 printf '0483\n' > /tmp/fake/1-2/idVendor
 printf 'df11\n' > /tmp/fake/1-2/idProduct
 FLINT_SYSFS=/tmp/fake flint watch
 ```
 
-## Keys
+## Licence
 
-`esc` goes back a step, anywhere except during a write. `q` quits, except
-during a write. `ctrl-c` always quits.
-
-Interrupting a flasher mid-write is the one action here that can leave a board
-unusable, so the two easy keys are taken away at exactly that moment and
-nowhere else.
-
-## Caveat
-
-If the vendor ships a working updater, use it. flint is for the boards where
-that updater is a Windows binary.
+MIT. See [LICENSE](LICENSE).
