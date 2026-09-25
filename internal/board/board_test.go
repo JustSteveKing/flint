@@ -67,7 +67,7 @@ func TestCandidatesForIsAmbiguousUntilProven(t *testing.T) {
 		t.Skip("bootloaders have been narrowed; ambiguity warning no longer applies")
 	}
 	for _, b := range got {
-		if b.Enter == "" {
+		if len(b.Steps) == 0 {
 			t.Errorf("%s has no instructions for entering bootloader mode", b.Name)
 		}
 	}
@@ -86,7 +86,7 @@ func TestEveryKnownBoardIsUsable(t *testing.T) {
 		if len(b.Bootloaders) == 0 {
 			t.Errorf("%s lists no bootloaders, so it can never be flashed", b.Name)
 		}
-		if b.Enter == "" {
+		if len(b.Steps) == 0 {
 			t.Errorf("%s has no instructions for entering bootloader mode", b.Name)
 		}
 	}

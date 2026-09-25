@@ -2,11 +2,8 @@ package cmd
 
 import (
 	"fmt"
-	"os/signal"
 	"strings"
-	"syscall"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/spf13/cobra"
 
 	"github.com/JustSteveKing/flint/internal/board"
@@ -22,8 +19,13 @@ func newFlashCmd() *cobra.Command {
 
 	cmd := &cobra.Command{
 		Use:   "flash <firmware>",
-		Short: "Wait for a board in bootloader mode, then flash it",
-		Args:  cobra.ExactArgs(1),
+		Short: "Start the walkthrough with the firmware already chosen",
+		Long: `flash starts the same walkthrough as running flint bare, with the file
+step already answered.
+
+Adding --board answers the board step too, which drops you straight onto the
+instructions for putting that keyboard into bootloader mode.`,
+		Args: cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			firmware := args[0]
 
@@ -42,14 +44,7 @@ func newFlashCmd() *cobra.Command {
 				opts.Board = &b
 			}
 
-			ctx, stop := signal.NotifyContext(cmd.Context(), syscall.SIGINT, syscall.SIGTERM)
-			defer stop()
-
-			model := tui.New(ctx, opts)
-			if _, err := tea.NewProgram(model, tea.WithContext(ctx)).Run(); err != nil {
-				return err
-			}
-			return model.Err()
+			return runWizard(cmd, opts)
 		},
 	}
 

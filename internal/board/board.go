@@ -87,8 +87,11 @@ type Board struct {
 	// Bootloaders are the DFU devices this board might come back as. More
 	// than one means flint does not yet know which, and will say so.
 	Bootloaders []Bootloader
-	// Enter is how a human puts this board into bootloader mode.
-	Enter string
+	// Steps are how a human puts this board into bootloader mode, one
+	// instruction per line. Written as things to do in order, because the
+	// walkthrough renders them as a numbered list and people follow those
+	// while holding a key down with their other hand.
+	Steps []string
 	// Firmware is where the official firmware for this board comes from.
 	Firmware string
 }
@@ -103,23 +106,51 @@ var Known = []Board{
 		// Launcher offers "STM32, WB, DFU in FS Mode" without saying which,
 		// so both candidates stay until one is seen.
 		Bootloaders: []Bootloader{STM32DFU, WB32DFU},
-		Enter:       "Hold Esc, unplug USB, keep holding Esc, plug back in.",
-		Firmware:    "https://www.keychron.com/pages/firmware-and-json-files-of-the-keychron-he-series-keyboards",
+		Steps: []string{
+			"Switch the keyboard to wired mode.",
+			"Hold down Esc.",
+			"Unplug the USB cable. Keep holding Esc.",
+			"Plug the cable back in, still holding Esc.",
+			"Let go. The board will look dead, with no lighting. That is correct.",
+		},
+		Firmware: "https://www.keychron.com/pages/firmware-and-json-files-of-the-keychron-he-series-keyboards",
 	},
 	{
 		Name:        "Keychron Q0 Mini 8K",
 		Normal:      usb.ID{Vendor: 0x3434, Product: 0x040b},
 		Bootloaders: []Bootloader{STM32DFU, WB32DFU},
-		Enter:       "Hold the top-left key, unplug USB, keep holding, plug back in.",
-		Firmware:    "https://www.keychron.com/pages/firmware",
+		Steps: []string{
+			"Hold down the top-left key.",
+			"Unplug the USB cable. Keep holding.",
+			"Plug the cable back in, still holding.",
+			"Let go. The board will look dead. That is correct.",
+		},
+		Firmware: "https://www.keychron.com/pages/firmware",
 	},
 	{
 		Name:        "Keychron Nape Pro",
 		Normal:      usb.ID{Vendor: 0x3434, Product: 0x0440},
 		Bootloaders: []Bootloader{STM32DFU, WB32DFU},
-		Enter:       "Switch to wired mode, hold Esc, unplug USB, keep holding, plug back in.",
-		Firmware:    "https://www.keychron.com/pages/firmware",
+		Steps: []string{
+			"Switch the keyboard to wired mode.",
+			"Hold down Esc.",
+			"Unplug the USB cable. Keep holding Esc.",
+			"Plug the cable back in, still holding Esc.",
+			"Let go. The board will look dead. That is correct.",
+		},
+		Firmware: "https://www.keychron.com/pages/firmware",
 	},
+}
+
+// GenericSteps is the best guess for a board that is not in the table. It is
+// what most QMK and QMK-adjacent boards want, and it is worth showing rather
+// than leaving someone with a blank screen.
+var GenericSteps = []string{
+	"Switch the keyboard to wired mode if it has one.",
+	"Hold down Esc, or press the board's reset button twice.",
+	"Unplug the USB cable. Keep holding.",
+	"Plug the cable back in, still holding.",
+	"Let go. The board will look dead. That is correct.",
 }
 
 // ByNormalID finds a known board by how it enumerates when running.

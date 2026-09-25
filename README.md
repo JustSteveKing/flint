@@ -28,28 +28,42 @@ flint names the missing package if one is not installed.
 
 ## Use
 
-Watch for a board and flash it:
-
 ```bash
-flint flash ~/Downloads/firmware.bin
+flint
 ```
 
-Put the keyboard into bootloader mode and flint will see it, say what it found,
-and ask before writing anything.
+That is the whole interface. flint walks you through it:
 
-Narrow it to one board so a stray DFU device cannot match:
+1. **Which keyboard**, from the boards it knows, with the connected ones marked.
+2. **Which firmware**, from a file browser that only offers real firmware.
+3. **How to get into bootloader mode**, as numbered steps for that specific
+   board, with a checklist that ticks off as flint watches it happen. Seeing
+   "unplugged" tick is how you know step 3 worked, and it arrives seconds
+   before the bootloader does.
+4. **Confirm**, showing exactly what was detected and the exact command, with
+   anything uncertain called out.
+
+Then live output while it writes, and a result screen that tells you what it
+learned about your board.
+
+The menu also has an **Identify a board** mode, which runs the same
+walkthrough and reports what appears without writing anything. That is how you
+find out what a new keyboard's bootloader is.
+
+### Skipping ahead
+
+Anything you already know is a step flint will not ask about:
 
 ```bash
-flint flash --board "Q1 HE" ~/Downloads/firmware.bin
-```
-
-Rehearse without writing:
-
-```bash
-flint flash --dry-run ~/Downloads/firmware.bin
+flint flash ~/Downloads/firmware.bin                    # starts at "which keyboard"
+flint flash --board "Q1 HE" ~/Downloads/firmware.bin    # starts at the instructions
+flint flash --dry-run ~/Downloads/firmware.bin          # rehearse, write nothing
 ```
 
 ### Other commands
+
+These are the non-interactive forms, for when you already know what you are
+doing:
 
 ```bash
 flint devices          # what is connected that flint recognises
@@ -67,7 +81,12 @@ what is behind it is to have written it down.
 1. `flint devices` gives the running ID.
 2. `flint watch`, then enter bootloader mode. The ID that appears is the
    bootloader.
-3. Add both to `Known` in `internal/board/board.go`.
+3. Add both to `Known` in `internal/board/board.go`, along with `Steps` for
+   getting into bootloader mode. Those steps are what the walkthrough renders,
+   so write them as things to do in order.
+
+`flint` will also tell you what it learned after a successful flash, on the
+result screen.
 
 Bootloaders listed as unverified have arguments transcribed from vendor docs
 rather than proven against hardware. flint warns before running one. When you
@@ -99,6 +118,15 @@ printf '0483\n' > /tmp/fake/1-2/idVendor
 printf 'df11\n' > /tmp/fake/1-2/idProduct
 FLINT_SYSFS=/tmp/fake flint watch
 ```
+
+## Keys
+
+`esc` goes back a step, anywhere except during a write. `q` quits, except
+during a write. `ctrl-c` always quits.
+
+Interrupting a flasher mid-write is the one action here that can leave a board
+unusable, so the two easy keys are taken away at exactly that moment and
+nowhere else.
 
 ## Caveat
 
