@@ -1,0 +1,4 @@
+/flint
+/dist/
+*.bin
+*.hex
