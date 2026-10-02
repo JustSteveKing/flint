@@ -7,6 +7,9 @@ import (
 	"os"
 
 	"github.com/JustSteveKing/flint/cmd"
+
+	// Before anything imports Bubble Tea: see the package doc.
+	_ "github.com/JustSteveKing/flint/internal/termquiet"
 )
 
 func main() {

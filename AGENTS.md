@@ -76,3 +76,15 @@ Tests are named for the behaviour they protect, and several carry a comment sayi
 Nothing has been flashed with flint yet. The bootloader IDs for the boards in the table are unobserved, so every entry lists multiple candidates. Only the STM32 DfuSe arguments are verified.
 
 If you are asked to narrow the table, the answer is not to infer it from documentation. It is `flint watch` against a real board.
+
+## Startup
+
+`internal/termquiet` and its blank import in `main.go` are load-bearing.
+Bubble Tea v1 asks the terminal for its background colour in its package
+`init`, so every flint command, not just the TUI, waited out a five-second
+timeout on a terminal that never answers (measured: `flint --version` took
+5.01s). termquiet declares the background first, relying on Go's specified
+package initialisation order (imports first, then import path, and
+`JustSteveKing` sorts before `charmbracelet`). `TestNoBackgroundQuery` runs
+the built binary in a pty (creack/pty, test-only) and fails at 4s if the
+import is removed or the package moved. The same fix as mavis's and taskgo's.
