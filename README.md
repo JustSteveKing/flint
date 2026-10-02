@@ -22,6 +22,19 @@ You also need whichever flasher your board's bootloader wants:
 
 If one is missing, flint names the package rather than leaving you with "command not found".
 
+### Tab completion
+
+```bash
+flint completion install
+```
+
+It works out your shell from `$SHELL` (or name it: `bash`, `zsh`, `fish`)
+and writes the script where that shell loads completions from, so there is
+nothing to source by hand. bash needs bash-completion installed. For zsh it
+checks the folder is on your `fpath` and prints the lines to add to
+`~/.zshrc` if not, or adds them with `--yes`. `flint completion uninstall`
+removes it.
+
 ## Use it
 
 ```sh

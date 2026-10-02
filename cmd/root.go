@@ -37,5 +37,6 @@ Run it with no arguments to be walked through the whole thing.`,
 		newWatchCmd(),
 		newFlashCmd(),
 	)
+	addCompletionInstall(root)
 	return root
 }
